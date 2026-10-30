@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Games Visualizer - Minimax and Wumpus World</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,"Segoe UI",Roboto,sans-serif;background:#0f172a;color:#e2e8f0}
+header{padding:12px 20px;background:#111c33;border-bottom:1px solid #26344f;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center}
+h1{font-size:18px;margin:0;color:#7dd3fc;white-space:nowrap}
+h2{font-size:16px;margin:0 0 8px;color:#f1f5f9}
+nav{display:flex;gap:8px}
+.tab{background:transparent;border-color:#334155;color:#94a3b8}
+.tab.active{background:#0ea5e9;border-color:#38bdf8;color:#04121f;font-weight:600}
+.toolbar{padding:10px 20px;background:#0f1a30;border-bottom:1px solid #26344f;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+label{font-size:13px;color:#94a3b8;display:inline-flex;align-items:center;gap:6px}
+select,input[type=number],input[type=text]{background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:7px 9px;font-size:14px}
+input[type=number]{width:64px}
+button{background:#1e3a5f;color:#e2e8f0;border:1px solid #2f5185;border-radius:8px;padding:7px 13px;font-size:14px;cursor:pointer}
+button:hover{background:#27508a}
+button.primary{background:#0ea5e9;border-color:#38bdf8;color:#04121f;font-weight:600}
+button.primary:hover{background:#38bdf8}
+main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:16px;padding:16px 20px}
+@media(max-width:1000px){main{grid-template-columns:1fr}}
+.card{background:#1a2740;border:1px solid #26344f;border-radius:12px;padding:14px;margin-bottom:14px}
+.card:last-child{margin-bottom:0}
+canvas{width:100%;max-width:560px;height:auto;display:block;margin:0 auto;border-radius:10px;background:#0b1220;cursor:pointer}
+.treebox{overflow-x:auto;background:#0b1220;border-radius:10px}
+.treebox svg{display:block;margin:0 auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12px;color:#cbd5e1}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block;border:1px solid rgba(255,255,255,.25)}
+.ln{width:22px;height:0;border-top:3px dashed;display:inline-block}
+.hint{font-size:12px;color:#64748b}
+.log{height:190px;overflow:auto;background:#0b1220;border:1px solid #26344f;border-radius:8px;padding:8px 10px;font:12px/1.5 ui-monospace,Consolas,monospace;color:#cbd5e1}
+.log div{padding:1px 0}
+.log .n{color:#64748b;margin-right:6px}
+.log .end{color:#fde047;font-weight:600}
+.log .new{color:#7dd3fc}
+.mono{font-family:ui-monospace,Consolas,monospace}
+.small{font-size:12px;line-height:1.6}
+.axioms{background:#0b1220;border-radius:8px;padding:8px 10px;color:#cbd5e1}
+.idea{margin:0 0 10px;color:#cbd5e1;font-size:14px;line-height:1.5}
+dl{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;margin:0;font-size:13px}
+dt{color:#94a3b8}
+dd{margin:0;color:#f1f5f9}
+.note{margin-top:10px;padding:8px 10px;border-left:3px solid #38bdf8;background:#14213a;font-size:13px;color:#cbd5e1;border-radius:0 8px 8px 0}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.stat{background:#0f172a;border-radius:8px;padding:8px 10px}
+.stat b{display:block;font-size:20px;color:#7dd3fc}
+.stat small{color:#94a3b8;font-size:11px}
+.result{margin-top:10px;font-size:13px;color:#e2e8f0;line-height:1.5}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:5px 6px;text-align:left;border-bottom:1px solid #26344f}
+th{color:#94a3b8;font-weight:600}
+.ok{color:#4ade80}.bad{color:#f87171}.warn{color:#fbbf24}
+footer{padding:0 20px 20px;color:#64748b;font-size:12px}
+
+</style>
+</head>
+<body>
+<header>
+  <h1>AI Games Visualizer</h1>
+  <nav>
+    <button class="tab active" data-tab="minimax">Minimax + Alpha-Beta</button>
+    <button class="tab" data-tab="wumpus">Wumpus World (FOL)</button>
+  </nav>
+</header>
+
+<!-- ============================ MINIMAX ============================ -->
+<section id="tab-minimax">
+  <div class="toolbar">
+    <label>Example
+      <select id="mmPreset">
+        <option value="aima">AIMA tree (depth 2, 3 branches)</option>
+        <option value="bin3">Binary tree, depth 3</option>
+        <option value="bin4">Binary tree, depth 4</option>
+        <option value="custom">Custom / random</option>
+      </select>
+    </label>
+    <label>Depth <input id="mmDepth" type="number" min="1" max="5" value="2"></label>
+    <label>Branches <input id="mmBranch" type="number" min="2" max="3" value="3"></label>
+    <label>Leaf values <input id="mmLeaves" type="text" size="34" value="3, 12, 8, 2, 4, 6, 14, 5, 2"></label>
+    <button id="mmRandom">Randomize leaves</button>
+    <label><input type="checkbox" id="mmAB" checked> Alpha-beta pruning</label>
+    <button id="mmPlay" class="primary">&#9654; Play</button>
+    <button id="mmStep">Step</button>
+    <button id="mmFinish">&#9197; Finish</button>
+    <button id="mmReset">Reset</button>
+    <label>Speed <input id="mmSpeed" type="range" min="1" max="10" value="5"></label>
+  </div>
+  <main>
+    <section>
+      <div class="card">
+        <div id="mmTree" class="treebox"></div>
+        <div class="legend">
+          <span><i class="sw" style="background:#1a2740"></i>not visited yet</span>
+          <span><i class="sw" style="background:#f97316"></i>being evaluated</span>
+          <span><i class="sw" style="background:#0ea5e9"></i>finished</span>
+          <span><i class="sw" style="background:#334155"></i>pruned (never looked at)</span>
+          <span><i class="ln" style="border-color:#facc15;border-top-style:solid"></i>best line of play</span>
+          <span>&#9650; = MAX node &nbsp; &#9660; = MIN node &nbsp; &#9632; = leaf</span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Step-by-step log</h2>
+        <div id="mmLog" class="log"></div>
+      </div>
+    </section>
+    <aside>
+      <div class="card" id="mmInfo"></div>
+      <div class="card">
+        <h2>Live statistics</h2>
+        <div class="stats">
+          <div class="stat"><b id="mmValue">-</b><small>Value of the root</small></div>
+          <div class="stat"><b id="mmEval">0</b><small>Leaves evaluated</small></div>
+          <div class="stat"><b id="mmVisited">0</b><small>Nodes visited</small></div>
+          <div class="stat"><b id="mmPruned">0</b><small>Leaves pruned</small></div>
+        </div>
+        <div id="mmResult" class="result"></div>
+      </div>
+      <div class="card">
+        <h2>Minimax vs alpha-beta on this tree</h2>
+        <table>
+          <thead><tr><th>Method</th><th>Leaves evaluated</th><th>Nodes visited</th></tr></thead>
+          <tbody id="mmCompare"><tr><td colspan="3" class="hint">Run the search to compare.</td></tr></tbody>
+        </table>
+      </div>
+    </aside>
+  </main>
+</section>
+
+<!-- ============================ WUMPUS ============================ -->
+<section id="tab-wumpus" hidden>
+  <div class="toolbar">
+    <label>Edit world: place
+      <select id="wvBrush">
+        <option value="pit">Pit</option>
+        <option value="wumpus">Wumpus</option>
+        <option value="gold">Gold</option>
+        <option value="clear">Clear cell</option>
+      </select>
+    </label>
+    <button id="wvAima">AIMA example world</button>
+    <button id="wvRandom">Random world</button>
+    <label><input type="checkbox" id="wvReveal"> Reveal the hidden world</label>
+    <button id="wvPlay" class="primary">&#9654; Play</button>
+    <button id="wvStep">Step</button>
+    <button id="wvFinish">&#9197; Finish</button>
+    <button id="wvReset">Reset</button>
+    <label>Speed <input id="wvSpeed" type="range" min="1" max="10" value="4"></label>
+  </div>
+  <main>
+    <section>
+      <div class="card">
+        <canvas id="wvCanvas" width="460" height="460"></canvas>
+        <div class="legend">
+          <span><i class="sw" style="background:#1e3a5f"></i>visited</span>
+          <span><i class="sw" style="background:#14532d"></i>proven safe</span>
+          <span><i class="sw" style="background:#78350f"></i>possible danger</span>
+          <span><i class="sw" style="background:#7f1d1d"></i>proven pit / Wumpus</span>
+          <span><i class="sw" style="background:#0f172a"></i>unknown</span>
+          <span><b>B</b> breeze &nbsp; <b>S</b> stench &nbsp; <b>G</b> glitter</span>
+        </div>
+        <div class="hint" style="margin-top:8px">Click a cell to place the item chosen in &ldquo;Edit world&rdquo; (the start cell (1,1) always stays free).
+          Coordinates are (x, y) with (1,1) at the bottom-left.</div>
+      </div>
+      <div class="card">
+        <h2>Step-by-step log</h2>
+        <div id="wvLog" class="log"></div>
+      </div>
+    </section>
+    <aside>
+      <div class="card">
+        <h2>Agent</h2>
+        <div class="stats">
+          <div class="stat"><b id="wvStatus">ready</b><small>Status</small></div>
+          <div class="stat"><b id="wvScore">0</b><small>Score</small></div>
+          <div class="stat"><b id="wvSteps">0</b><small>Steps taken</small></div>
+          <div class="stat"><b id="wvInv">-</b><small>Gold / arrow</small></div>
+        </div>
+        <div id="wvPercepts" class="result"></div>
+        <div id="wvResult" class="result"></div>
+      </div>
+      <div class="card">
+        <h2>ASK: what does the KB entail?</h2>
+        <div id="wvAsk" class="mono small"><span class="hint">Press Step to start.</span></div>
+        <div class="hint" style="margin-top:6px">Answered by model checking (TT-ENTAILS): KB &#8872; &alpha; iff &alpha; holds in every model of the KB.
+          Time O(2<sup>f</sup>) for f frontier cells.</div>
+      </div>
+      <div class="card">
+        <h2>Knowledge base (TELL)</h2>
+        <div id="wvKB" class="log mono small" style="height:170px"></div>
+      </div>
+      <div class="card">
+        <h2>FOL axioms (background knowledge)</h2>
+        <div class="mono small axioms">
+          &forall;x,y &nbsp;Breeze(x,y) &hArr; &exist;x&prime;,y&prime; [Adjacent((x,y),(x&prime;,y&prime;)) &and; Pit(x&prime;,y&prime;)]<br>
+          &forall;x,y &nbsp;Stench(x,y) &hArr; &exist;x&prime;,y&prime; [Adjacent((x,y),(x&prime;,y&prime;)) &and; Wumpus(x&prime;,y&prime;)]<br>
+          &exist;!x,y &nbsp;Wumpus(x,y)<br>
+          &forall;x,y &nbsp;Safe(x,y) &hArr; &not;Pit(x,y) &and; &not;Wumpus(x,y)<br>
+          &forall;x,y &nbsp;Glitter(x,y) &rArr; Gold(x,y)
+        </div>
+        <div class="hint" style="margin-top:6px">For each visited cell the axioms are instantiated (universal instantiation) and added to the KB, as shown above.</div>
+      </div>
+    </aside>
+  </main>
+</section>
+
+<footer>
+  Minimax: time O(b<sup>m</sup>), space O(b&middot;m). Alpha-beta: same result, best case O(b<sup>m/2</sup>) with perfect move ordering.
+  Wumpus World: sound and complete inference by model checking over the frontier cells.
+</footer>
+
+<script>
+// =====================================================================
+//  JavaScript port of minimax.py and wumpus.py.
+//  Used ONLY by the standalone HTML (ai_games.html), which has no Python server.
+//  The Flask version uses api.js instead and runs the Python code.
+// =====================================================================
+
+// ------------------------------------------------------------ Minimax + alpha-beta
+function simulateMinimax(depth, b, leaves, alphaBeta, record) {
+  const firstLeaf = (Math.pow(b, depth) - 1) / (b - 1);
+  const steps = [], bestChild = {};
+  const stats = { leaves: 0, visited: 0, prunedLeaves: 0 };
+  const fin = x => (x === Infinity || x === -Infinity) ? null : x;
+  const abText = (a, be) => `α=${a === -Infinity ? '-∞' : a}, β=${be === Infinity ? '+∞' : be}`;
+
+  function subtree(i, d) {
+    let out = [i];
+    if (d < depth) for (let k = 0; k < b; k++) out = out.concat(subtree(i * b + 1 + k, d + 1));
+    return out;
+  }
+  function rec(i, d, alpha, beta) {
+    stats.visited++;
+    const isMax = d % 2 === 0, role = isMax ? 'MAX' : 'MIN';
+    if (d === depth) {
+      const v = leaves[i - firstLeaf];
+      stats.leaves++;
+      if (record) steps.push({ kind: 'leaf', node: i, value: v, alpha: fin(alpha), beta: fin(beta), msg: `Leaf ${i}: static evaluation = ${v}.` });
+      return v;
+    }
+    if (record) {
+      const where = alphaBeta ? ` (${abText(alpha, beta)})` : '';
+      steps.push({ kind: 'enter', node: i, value: null, alpha: fin(alpha), beta: fin(beta), msg: `Visit ${role} node ${i}${where}.` });
+    }
+    let best = isMax ? -Infinity : Infinity;
+    for (let k = 0; k < b; k++) {
+      const c = i * b + 1 + k;
+      const v = rec(c, d + 1, alpha, beta);
+      if ((isMax && v > best) || (!isMax && v < best)) { best = v; bestChild[i] = c; }
+      if (alphaBeta) { if (isMax) alpha = Math.max(alpha, best); else beta = Math.min(beta, best); }
+      if (record) {
+        const extra = alphaBeta ? `; ${abText(alpha, beta)}` : '';
+        steps.push({ kind: 'update', node: i, value: best, alpha: fin(alpha), beta: fin(beta), msg: `${role} node ${i}: child ${c} returned ${v} -> best so far = ${best}${extra}.` });
+      }
+      if (alphaBeta && alpha >= beta) {
+        const rest = [];
+        for (let j = k + 1; j < b; j++) rest.push(i * b + 1 + j);
+        if (rest.length) {
+          let ids = [];
+          for (const r of rest) ids = ids.concat(subtree(r, d + 1));
+          stats.prunedLeaves += ids.filter(x => x >= firstLeaf).length;
+          if (record) steps.push({ kind: 'prune', node: i, value: best, alpha: fin(alpha), beta: fin(beta), pruned: ids, cut: rest,
+            msg: `PRUNE at ${role} node ${i}: α=${alpha} ≥ β=${beta}, so the remaining child(ren) [${rest.join(', ')}] cannot change the result - skipped.` });
+        }
+        break;
+      }
+    }
+    if (record) steps.push({ kind: 'exit', node: i, value: best, alpha: fin(alpha), beta: fin(beta), msg: `${role} node ${i} finished with value ${best}.` });
+    return best;
+  }
+  const value = rec(0, 0, -Infinity, Infinity);
+  const pv = [0]; let node = 0;
+  while (node in bestChild) { node = bestChild[node]; pv.push(node); }
+  return { value, steps, pv, stats };
+}
+
+function runMinimax({ depth, branching, leaves, alphaBeta }) {
+  const b = branching;
+  if (!Number.isInteger(depth) || !Number.isInteger(b)) throw new Error('Depth and branching factor must be whole numbers.');
+  if (depth < 1 || depth > 5 || b < 2 || b > 3) throw new Error('Depth must be 1-5 and the branching factor 2 or 3.');
+  if (Math.pow(b, depth) > 32) throw new Error('The tree is too large (at most 32 leaves).');
+  if (!Array.isArray(leaves) || leaves.length !== Math.pow(b, depth)) throw new Error(`A tree with depth ${depth} and branching ${b} needs exactly ${Math.pow(b, depth)} leaf values.`);
+  if (leaves.some(v => typeof v !== 'number' || !Number.isFinite(v))) throw new Error('Leaf values must be finite numbers.');
+  const main = simulateMinimax(depth, b, leaves, alphaBeta, true);
+  return {
+    depth, branching: b, leaves, alphaBeta, value: main.value, pv: main.pv, steps: main.steps, stats: main.stats,
+    compare: { minimax: simulateMinimax(depth, b, leaves, false, false).stats, alphabeta: simulateMinimax(depth, b, leaves, true, false).stats },
+  };
+}
+
+// ------------------------------------------------------------ FOL Wumpus World
+const SIZE = 4, MAX_STEPS = 150;
+const ck = c => c[0] + ',' + c[1];
+const fmt = c => `(${c[0]},${c[1]})`;
+const cmpRow = (a, b) => (a[1] - b[1]) || (a[0] - b[0]);
+const sameCell = (a, b) => !!a && !!b && a[0] === b[0] && a[1] === b[1];
+const isAdj = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
+function adjCells(c) {
+  const [x, y] = c, out = [];
+  for (const [nx, ny] of [[x, y + 1], [x + 1, y], [x, y - 1], [x - 1, y]]) if (nx >= 1 && nx <= SIZE && ny >= 1 && ny <= SIZE) out.push([nx, ny]);
+  return out;
+}
+function allCells() { const out = []; for (let y = 1; y <= SIZE; y++) for (let x = 1; x <= SIZE; x++) out.push([x, y]); return out; }
+function bfsPath(src, dst, allowed) {            // allowed: Set of cell keys
+  if (sameCell(src, dst)) return [];
+  const prev = new Map([[ck(src), null]]), queue = [src]; let head = 0;
+  while (head < queue.length) {
+    const cur = queue[head++];
+    for (const n of adjCells(cur)) {
+      if (prev.has(ck(n)) || !allowed.has(ck(n))) continue;
+      prev.set(ck(n), cur);
+      if (sameCell(n, dst)) {
+        const path = [n];
+        while (!sameCell(prev.get(ck(path[path.length - 1])), src)) path.push(prev.get(ck(path[path.length - 1])));
+        return path.reverse();
+      }
+      queue.push(n);
+    }
+  }
+  return null;
+}
+const popcount = m => { let n = 0; while (m) { n += m & 1; m >>= 1; } return n; };
+
+class KB {
+  constructor() { this.visited = []; this.breeze = {}; this.stench = {}; this.killed = false; }
+  tell(c, p) {
+    this.visited.push(c); this.breeze[ck(c)] = p.breeze; this.stench[ck(c)] = p.stench;
+    const a = adjCells(c);
+    const out = [`¬Pit${fmt(c)} ∧ ¬Wumpus${fmt(c)}   (the agent is alive in ${fmt(c)})`,
+      (p.breeze ? '' : '¬') + `Breeze${fmt(c)}`, (p.stench ? '' : '¬') + `Stench${fmt(c)}`];
+    if (p.glitter) out.push(`Glitter${fmt(c)}`);
+    out.push(`Breeze${fmt(c)} ⇔ ` + a.map(n => `Pit${fmt(n)}`).join(' ∨ '));
+    out.push(`Stench${fmt(c)} ⇔ ` + a.map(n => `Wumpus${fmt(n)}`).join(' ∨ '));
+    return out;
+  }
+  tellScream() { this.killed = true; return ['Scream   ⇒   the Wumpus is dead:  ∀x,y ¬Wumpus(x,y)']; }
+  frontier() {
+    const seen = new Set(this.visited.map(ck)), out = new Map();
+    for (const v of this.visited) for (const n of adjCells(v)) if (!seen.has(ck(n))) out.set(ck(n), n);
+    return [...out.values()].sort(cmpRow);
+  }
+  pitModels() {
+    const F = this.frontier(), idx = new Map(F.map((c, i) => [ck(c), i])), cons = [];
+    for (const v of this.visited) {
+      let mask = 0;
+      for (const n of adjCells(v)) if (idx.has(ck(n))) mask |= 1 << idx.get(ck(n));
+      cons.push([mask, this.breeze[ck(v)]]);
+    }
+    const models = [];
+    for (let m = 0; m < (1 << F.length); m++) if (cons.every(([mask, br]) => ((m & mask) !== 0) === br)) models.push([m, popcount(m)]);
+    return { F, models };
+  }
+  wumpusCandidates() {
+    if (this.killed) return [];
+    const seen = new Set(this.visited.map(ck)), out = [];
+    for (const c of allCells()) {
+      if (seen.has(ck(c))) continue;
+      if (this.visited.every(v => isAdj(c, v) === this.stench[ck(v)])) out.push(c);
+    }
+    return out;
+  }
+}
+
+function infer(kb) {
+  const { F, models } = kb.pitModels(), cands = kb.wumpusCandidates(), total = models.length;
+  const candKeys = new Set(cands.map(ck));
+  const asks = [], safe = [], pits = [];
+  F.forEach((c, i) => {
+    const withPit = models.filter(([m]) => (m >> i) & 1).length;
+    const pitState = withPit === 0 ? 'yes' : (withPit === total ? 'no' : 'unknown');
+    const wState = (kb.killed || !candKeys.has(ck(c))) ? 'yes' : (cands.length === 1 ? 'no' : 'unknown');
+    asks.push({ cell: c.slice(), noPit: pitState, noWumpus: wState, pitModels: withPit, models: total });
+    if (pitState === 'yes' && wState === 'yes') safe.push(c);
+    if (pitState === 'no') pits.push(c);
+  });
+  const wumpus = (!kb.killed && cands.length === 1) ? [cands[0]] : [];
+  const inList = (list, c) => list.some(x => sameCell(x, c));
+  const maybe = F.filter(c => !inList(safe, c) && !inList(pits, c) && !inList(wumpus, c));
+  return { asks, safe, pits, wumpus, maybe };
+}
+
+class Game {
+  constructor(world) {
+    this.pits = (world.pits || []).map(p => p.slice());
+    this.wumpus = world.wumpus ? world.wumpus.slice() : null;
+    this.gold = world.gold ? world.gold.slice() : null;
+    for (const c of [...this.pits, this.wumpus, this.gold]) {
+      if (c && !(c[0] >= 1 && c[0] <= SIZE && c[1] >= 1 && c[1] <= SIZE)) throw new Error(`Cell ${fmt(c)} is outside the ${SIZE}x${SIZE} board.`);
+    }
+    if (this.pits.some(p => sameCell(p, [1, 1])) || sameCell(this.wumpus, [1, 1])) throw new Error('The start cell (1,1) must be free of pits and the Wumpus.');
+    this.pitKeys = new Set(this.pits.map(ck));
+    this.kb = new KB(); this.pos = [1, 1]; this.hasGold = false; this.arrow = true; this.giveUp = false;
+    this.score = 0; this.status = 'running'; this.steps = []; this.percepts = {}; this.inf = null;
+  }
+  get wAlive() { return !!this.wumpus && !this.kb.killed; }
+  isVisited(c) { return this.kb.visited.some(v => sameCell(v, c)); }
+  sense(c, scream = false) {
+    return {
+      breeze: adjCells(c).some(a => this.pitKeys.has(ck(a))),
+      stench: this.wAlive && isAdj(this.wumpus, c),
+      glitter: sameCell(this.gold, c) && !this.hasGold,
+      scream,
+    };
+  }
+  record(action, msg, tell = [], dead = false) {
+    if (!dead) this.inf = infer(this.kb);
+    const inf = this.inf, cl = list => list.map(c => c.slice());
+    this.steps.push({
+      n: this.steps.length, action, msg, agent: this.pos.slice(), visited: cl(this.kb.visited), percepts: { ...this.percepts }, tell: tell.slice(),
+      asks: inf.asks, safe: cl(inf.safe), pits: cl(inf.pits), wumpus: cl(inf.wumpus), maybe: cl(inf.maybe),
+      hasGold: this.hasGold, wumpusDead: this.kb.killed, arrow: this.arrow, status: this.status, score: this.score,
+    });
+  }
+  moveTo(c, why) {
+    this.pos = c.slice(); this.score -= 1;
+    const action = `Move to ${fmt(c)}`;
+    if (this.pitKeys.has(ck(c)) || (this.wAlive && sameCell(c, this.wumpus))) {
+      this.status = 'dead'; this.score -= 1000;
+      this.percepts = { breeze: false, stench: false, glitter: false, scream: false };
+      const what = this.pitKeys.has(ck(c)) ? 'fell into a pit' : 'was eaten by the Wumpus';
+      this.record(action, `${why} The agent ${what} in ${fmt(c)}. GAME OVER.`, [], true);
+      return;
+    }
+    this.percepts = this.sense(c);
+    const tell = this.isVisited(c) ? [] : this.kb.tell(c, this.percepts);
+    this.record(action, why, tell);
+  }
+  run() {
+    this.percepts = this.sense(this.pos);
+    const tell = this.kb.tell(this.pos, this.percepts);
+    this.record('Start', 'The agent starts in (1,1), which is safe by definition. It TELLs the KB its percepts and ASKs which neighbouring cells are safe.', tell);
+    while (this.status === 'running' && this.steps.length < MAX_STEPS) this.decide();
+    if (this.status === 'running') this.status = 'gave up';
+    return { steps: this.steps, status: this.status, score: this.score };
+  }
+  decide() {
+    const kb = this.kb, inf = this.inf, pos = this.pos, home = [1, 1];
+    const visitedKeys = () => new Set(kb.visited.map(ck));
+    const better = (a, b) => a[0] < b[0] || (a[0] === b[0] && cmpRow(a[1], b[1]) < 0);   // (path length, cell) ordering
+
+    if (this.percepts.glitter && !this.hasGold) {
+      this.hasGold = true; this.score -= 1; this.percepts = this.sense(pos);
+      this.record('Grab gold', 'Glitter perceived, so the gold is here: GRAB it. Next: return to (1,1) through cells already visited (known safe).');
+      return;
+    }
+    if (this.hasGold || this.giveUp) {
+      if (sameCell(pos, home)) {
+        this.score -= 1;
+        if (this.hasGold) { this.score += 1000; this.status = 'won'; this.record('Climb out', 'Back in (1,1) with the gold: CLIMB out. Success!'); }
+        else { this.status = 'gave up'; this.record('Climb out', 'No safe or worthwhile move is left and no gold was found: return to (1,1) and CLIMB out.'); }
+        return;
+      }
+      const path = bfsPath(pos, home, visitedKeys());
+      this.moveTo(path[0], 'Heading home through visited (safe) cells.');
+      return;
+    }
+    // 3. provably safe, unvisited cell
+    const allowed = visitedKeys(); inf.safe.forEach(c => allowed.add(ck(c)));
+    let best = null;
+    for (const c of inf.safe) {
+      const path = bfsPath(pos, c, allowed);
+      if (path !== null && (best === null || better([path.length, c], [best.len, best.c]))) best = { len: path.length, c, path };
+    }
+    if (best !== null) {
+      const c = best.c;
+      this.moveTo(best.path[0], `ASK: KB ⊨ ¬Pit${fmt(c)} ∧ ¬Wumpus${fmt(c)}, so ${fmt(c)} is provably safe. Heading there.`);
+      return;
+    }
+    // 4. shoot a Wumpus whose location is proven
+    if (this.arrow && inf.wumpus.length) {
+      const w = inf.wumpus[0];
+      const aligned = kb.visited.filter(c => c[0] === w[0] || c[1] === w[1]);
+      if (aligned.some(c => sameCell(c, pos))) {
+        this.arrow = false; this.score -= 11;
+        const killed = sameCell(this.wumpus, w);
+        const tell = killed ? kb.tellScream() : [];
+        this.percepts = this.sense(pos, killed);
+        this.record('Shoot arrow', `KB ⊨ Wumpus${fmt(w)} and the agent is in line with it: SHOOT. ` + (killed ? 'Scream heard - the Wumpus is dead.' : 'The arrow missed.'), tell);
+        return;
+      }
+      let bestA = null;
+      for (const c of aligned) {
+        const path = bfsPath(pos, c, visitedKeys());
+        if (path !== null && (bestA === null || better([path.length, c], [bestA.len, bestA.c]))) bestA = { len: path.length, c, path };
+      }
+      if (bestA !== null) {
+        this.moveTo(bestA.path[0], `KB ⊨ Wumpus${fmt(w)}. Walking to ${fmt(bestA.c)}, which is in line with it, to shoot.`);
+        return;
+      }
+    }
+    // 5. least risky frontier cell
+    const { F, models } = kb.pitModels();
+    let total = 0; for (const [, k] of models) total += Math.pow(4, F.length - k);
+    const cands = kb.wumpusCandidates(), candKeys = new Set(cands.map(ck));
+    const unsafe = new Set([...inf.pits, ...inf.wumpus].map(ck));
+    let bestR = null;
+    F.forEach((c, i) => {
+      if (unsafe.has(ck(c))) return;
+      let withC = 0; for (const [m, k] of models) if ((m >> i) & 1) withC += Math.pow(4, F.length - k);
+      const pp = withC / total, pw = candKeys.has(ck(c)) ? 1 / cands.length : 0;
+      const risk = 1 - (1 - pp) * (1 - pw);
+      const vk = visitedKeys(); vk.add(ck(c));
+      const path = bfsPath(pos, c, vk);
+      if (path === null) return;
+      if (bestR === null || risk < bestR.risk || (risk === bestR.risk && (path.length < bestR.len || (path.length === bestR.len && cmpRow(c, bestR.c) < 0)))) {
+        bestR = { risk, len: path.length, c, path };
+      }
+    });
+    if (bestR !== null) {
+      const pct = Math.floor(bestR.risk * 100 + 0.5), c = bestR.c;
+      const why = bestR.path.length === 1
+        ? `No cell is provably safe. Least risky option: ${fmt(c)} (about ${pct}% danger). Taking the risk.`
+        : `No cell is provably safe. Walking toward the least risky cell ${fmt(c)} (about ${pct}% danger).`;
+      this.moveTo(bestR.path[0], why);
+      return;
+    }
+    this.giveUp = true;
+  }
+}
+
+function runWumpus(world) {
+  if (!world || typeof world !== 'object') throw new Error('The world must be an object with pits, wumpus and gold.');
+  return new Game(world).run();
+}
+
+// computeSteps is what app.js calls. Here the work is done in the browser.
+async function computeSteps(kind, body) {
+  if (kind === 'minimax') return runMinimax(body);
+  if (kind === 'wumpus') return runWumpus(body.world);
+  throw new Error('Unknown request: ' + kind);
+}
+
+</script>
+<script>
+// =====================================================================
+//  Front-end for the Minimax and Wumpus World visualizers.
+//  It asks computeSteps(kind, body) for a list of recorded steps and replays them.
+//  (computeSteps comes from api.js = Python/Flask, or logic.js = standalone HTML.)
+// =====================================================================
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const DELAYS = [900, 600, 380, 240, 150, 90, 50, 25, 10, 2];
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
+  ['minimax', 'wumpus'].forEach(t => { $('tab-' + t).hidden = (t !== btn.dataset.tab); });
+  mmPlayer.stop(); wvPlayer.stop();
+}));
+
+// ---------- generic replay controller ----------
+function createPlayer(o) {
+  let run = null, idx = 0, playing = false, timer = null, promise = null;
+  const P = {};
+  P.finished = () => !!run && idx >= run.steps.length;
+  P.ensure = async () => {
+    if (run) return;
+    if (!promise) promise = o.fetchRun().then(r => { run = r; o.onRun(r); }).catch(e => { promise = null; o.onError(e); throw e; });
+    await promise;
+  };
+  P.stepOnce = async () => {
+    try { await P.ensure(); } catch (e) { return false; }
+    if (idx >= run.steps.length) return false;
+    o.apply(run.steps[idx], idx); idx++;
+    if (idx >= run.steps.length) o.onEnd(run);
+    o.redraw();
+    return idx < run.steps.length;
+  };
+  P.stop = () => { playing = false; clearTimeout(timer); o.play.innerHTML = '&#9654; Play'; };
+  P.tick = async () => {
+    if (!playing) return;
+    const sp = +o.speed.value, burst = sp >= 9 ? 4 : 1;
+    let more = true;
+    for (let k = 0; k < burst && more && playing; k++) more = await P.stepOnce();
+    if (more && playing) timer = setTimeout(P.tick, DELAYS[sp - 1]); else P.stop();
+  };
+  P.start = () => { if (P.finished()) P.reset(); playing = true; o.play.innerHTML = '&#9208; Pause'; P.tick(); };
+  P.reset = () => { P.stop(); run = null; idx = 0; promise = null; o.onReset(); o.redraw(); };
+  P.finish = async () => {
+    P.stop(); if (P.finished()) P.reset();
+    try { await P.ensure(); } catch (e) { return; }
+    while (idx < run.steps.length) { o.apply(run.steps[idx], idx); idx++; }
+    o.onEnd(run); o.redraw();
+  };
+  o.play.onclick = () => playing ? P.stop() : P.start();
+  o.step.onclick = async () => { P.stop(); if (P.finished()) P.reset(); await P.stepOnce(); };
+  o.fin.onclick = P.finish;
+  o.rst.onclick = P.reset;
+  return P;
+}
+function addLog(box, html, cls) {
+  const d = document.createElement('div');
+  d.innerHTML = html; if (cls) d.className = cls;
+  box.appendChild(d);
+  while (box.childElementCount > 400) box.removeChild(box.firstChild);
+  box.scrollTop = box.scrollHeight;
+}
+
+// =====================================================================
+//  MINIMAX
+// =====================================================================
+const MM_PRESETS = {
+  aima: { depth: 2, b: 3, leaves: [3, 12, 8, 2, 4, 6, 14, 5, 2] },
+  bin3: { depth: 3, b: 2, leaves: [3, 5, 6, 9, 1, 2, 0, -1] },
+  bin4: { depth: 4, b: 2, leaves: [10, 5, 7, 11, 12, 8, 9, 8, 5, 12, 11, 12, 9, 8, 7, 10] },
+};
+let mm = { depth: 2, b: 3, leaves: MM_PRESETS.aima.leaves.slice(), ab: true, run: null };
+let mv = newMV();
+function newMV() { return { alpha: {}, beta: {}, value: {}, status: {}, cut: new Set(), current: -1, pv: [], evalLeaves: 0, visited: 0, prunedLeaves: 0, done: false }; }
+const mmFirstLeaf = () => (Math.pow(mm.b, mm.depth) - 1) / (mm.b - 1);
+
+function mmSetInputs() {
+  $('mmDepth').value = mm.depth; $('mmBranch').value = mm.b; $('mmLeaves').value = mm.leaves.join(', ');
+}
+function mmReadInputs() {            // returns an error message, or '' if the inputs are fine
+  const depth = parseInt($('mmDepth').value, 10), b = parseInt($('mmBranch').value, 10);
+  const leaves = $('mmLeaves').value.split(/[\s,;]+/).filter(Boolean).map(Number);
+  if (!(depth >= 1 && depth <= 5 && b >= 2 && b <= 3)) return 'Depth must be 1-5 and branches 2 or 3.';
+  if (Math.pow(b, depth) > 32) return 'The tree is too large (at most 32 leaves).';
+  if (leaves.some(v => !Number.isFinite(v))) return 'Leaf values must be numbers separated by commas.';
+  if (leaves.length !== Math.pow(b, depth)) return `Depth ${depth} with ${b} branches needs exactly ${Math.pow(b, depth)} leaf values (you entered ${leaves.length}).`;
+  mm.depth = depth; mm.b = b; mm.leaves = leaves; mm.ab = $('mmAB').checked;
+  return '';
+}
+function mmRandomLeaves() {
+  const n = Math.pow(mm.b, mm.depth);
+  mm.leaves = Array.from({ length: n }, () => Math.floor(Math.random() * 21) - 5);
+  mmSetInputs();
+}
+
+const mmPlayer = createPlayer({
+  play: $('mmPlay'), step: $('mmStep'), fin: $('mmFinish'), rst: $('mmReset'), speed: $('mmSpeed'),
+  fetchRun: async () => {
+    const err = mmReadInputs();
+    if (err) throw new Error(err);
+    return computeSteps('minimax', { depth: mm.depth, branching: mm.b, leaves: mm.leaves, alphaBeta: mm.ab });
+  },
+  onRun: r => { mm.run = r; },
+  onError: e => { $('mmResult').innerHTML = `<span class="bad">${esc(e.message)}</span>`; },
+  onReset: () => { mm.run = null; mv = newMV(); $('mmLog').innerHTML = ''; $('mmResult').textContent = ''; $('mmValue').textContent = '-'; },
+  apply: (s, i) => {
+    mv.current = s.node;
+    if (s.kind === 'enter') { mv.visited++; mv.status[s.node] = 'active'; mv.alpha[s.node] = s.alpha; mv.beta[s.node] = s.beta; }
+    else if (s.kind === 'leaf') { mv.visited++; mv.evalLeaves++; mv.status[s.node] = 'done'; mv.value[s.node] = s.value; }
+    else if (s.kind === 'update') { mv.value[s.node] = s.value; mv.alpha[s.node] = s.alpha; mv.beta[s.node] = s.beta; }
+    else if (s.kind === 'prune') {
+      s.cut.forEach(c => mv.cut.add(c));
+      s.pruned.forEach(id => { mv.status[id] = 'pruned'; if (id >= mmFirstLeaf()) mv.prunedLeaves++; });
+    } else if (s.kind === 'exit') { mv.status[s.node] = 'done'; mv.value[s.node] = s.value; mv.alpha[s.node] = s.alpha; mv.beta[s.node] = s.beta; }
+    addLog($('mmLog'), `<span class="n">${i + 1}</span>${esc(s.msg)}`);
+  },
+  onEnd: r => {
+    mv.done = true; mv.pv = r.pv; mv.current = -1;
+    const total = Math.pow(r.branching, r.depth), ev = r.stats.leaves;
+    const moveIdx = r.pv.length > 1 ? r.pv[1] - 0 : null;
+    let msg = `<b>Root value = ${r.value}.</b> `;
+    if (moveIdx !== null) msg += `Best move for MAX: branch ${moveIdx} of ${r.branching}. `;
+    if (r.alphaBeta) msg += `Alpha-beta evaluated ${ev} of ${total} leaves` + (ev < total ? ` - <span class="ok">${total - ev} skipped (${Math.round(100 * (total - ev) / total)}% saved)</span>.` : ' (nothing could be pruned on this tree).');
+    else msg += `Plain minimax evaluated all ${total} leaves.`;
+    $('mmResult').innerHTML = msg;
+    addLog($('mmLog'), `<span class="n">*</span>Finished. Root value ${r.value}.`, 'end');
+    const row = (n, s) => `<tr><td>${n}</td><td>${s.leaves}</td><td>${s.visited}</td></tr>`;
+    $('mmCompare').innerHTML = row('Minimax (no pruning)', r.compare.minimax) + row('Minimax + alpha-beta', r.compare.alphabeta);
+  },
+  redraw: () => mmDraw(),
+});
+
+function mmInfo() {
+  const ab = $('mmAB').checked;
+  $('mmInfo').innerHTML = ab
+    ? `<h2>Minimax with alpha-beta pruning</h2>
+       <p class="idea">Minimax with two extra bounds: &alpha; = the best value MAX can already guarantee, &beta; = the best value MIN can already guarantee. When &alpha; &ge; &beta; the rest of that node's children can be skipped without changing the answer.</p>
+       <dl><dt>Data structure</dt><dd>Recursion (depth-first), no extra memory</dd>
+       <dt>Time complexity</dt><dd>worst case O(b<sup>m</sup>); best case O(b<sup>m/2</sup>) with perfect move ordering</dd>
+       <dt>Space complexity</dt><dd>O(b&middot;m)</dd><dt>Complete?</dt><dd>Yes (finite tree)</dd>
+       <dt>Optimal?</dt><dd>Yes, against an optimal opponent - same value as plain minimax</dd></dl>
+       <div class="note">Try the AIMA tree: after MIN's first leaf 2 the &beta; bound (2) is below &alpha; (3), so leaves 4 and 6 are never evaluated.</div>`
+    : `<h2>Minimax</h2>
+       <p class="idea">MAX picks the child with the highest value, MIN picks the lowest. Values are computed bottom-up from the leaves, looking at every node of the tree.</p>
+       <dl><dt>Data structure</dt><dd>Recursion (depth-first)</dd>
+       <dt>Time complexity</dt><dd>O(b<sup>m</sup>)</dd><dt>Space complexity</dt><dd>O(b&middot;m)</dd>
+       <dt>Complete?</dt><dd>Yes (finite tree)</dd><dt>Optimal?</dt><dd>Yes, against an optimal opponent</dd></dl>
+       <div class="note">b = branching factor, m = maximum depth. Switch on alpha-beta pruning to see which branches can be skipped.</div>`;
+}
+
+// layout + drawing of the game tree (SVG)
+function mmLayout(depth, b) {
+  const pos = []; let leaf = 0; const gap = 56, top = 56, dy = 92;
+  (function rec(i, d) {
+    if (d === depth) { pos[i] = { x: 36 + leaf * gap + gap / 2 - 18, y: top + d * dy }; leaf++; return; }
+    for (let k = 0; k < b; k++) rec(i * b + 1 + k, d + 1);
+    let sum = 0; for (let k = 0; k < b; k++) sum += pos[i * b + 1 + k].x;
+    pos[i] = { x: sum / b, y: top + d * dy };
+  })(0, 0);
+  return { pos, W: 72 + Math.pow(b, depth) * gap - 18, H: top + depth * dy + 50 };
+}
+function mmDraw() {
+  const { depth, b } = mm, { pos, W, H } = mmLayout(depth, b), first = mmFirstLeaf();
+  const total = (Math.pow(b, depth + 1) - 1) / (b - 1), showAB = !!(mm.run && mm.run.alphaBeta);
+  const pvEdge = new Set(); for (let k = 1; k < mv.pv.length; k++) pvEdge.add(mv.pv[k]);
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif">`;
+  for (let d = 0; d <= depth; d++) s += `<text x="6" y="${56 + d * 92 + 4}" fill="#64748b" font-size="11">${d === depth ? 'leaf' : (d % 2 === 0 ? 'MAX' : 'MIN')}</text>`;
+  for (let i = 1; i < total; i++) {                                  // edges
+    const p = pos[Math.floor((i - 1) / b)], c = pos[i];
+    const cut = mv.cut.has(i), pv = pvEdge.has(i);
+    s += `<line x1="${p.x}" y1="${p.y}" x2="${c.x}" y2="${c.y}" stroke="${pv ? '#facc15' : cut ? '#f87171' : '#475569'}" stroke-width="${pv ? 4 : 2}" ${cut ? 'stroke-dasharray="5 4"' : ''}/>`;
+    if (cut) { const mx = (p.x + c.x) / 2, my = (p.y + c.y) / 2; s += `<text x="${mx}" y="${my + 5}" fill="#f87171" font-size="16" text-anchor="middle" font-weight="700">&#10005;</text>`; }
+  }
+  for (let i = 0; i < total; i++) {                                  // nodes
+    const d = i === 0 ? 0 : Math.floor(Math.log(i * (b - 1) + 1) / Math.log(b) + 1e-9);
+    const p = pos[i], st = mv.status[i], leaf = d === depth;
+    const fill = st === 'active' ? '#f97316' : st === 'done' ? '#0ea5e9' : st === 'pruned' ? '#334155' : '#1a2740';
+    const stroke = i === mv.current ? '#fde047' : (st === 'pruned' ? '#64748b' : '#94a3b8');
+    const sw = i === mv.current ? 3 : 1.5, dash = st === 'pruned' ? 'stroke-dasharray="4 3"' : '';
+    if (leaf) s += `<rect x="${p.x - 18}" y="${p.y - 15}" width="36" height="30" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${dash}/>`;
+    else if (d % 2 === 0) s += `<polygon points="${p.x},${p.y - 20} ${p.x - 21},${p.y + 15} ${p.x + 21},${p.y + 15}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${dash}/>`;
+    else s += `<polygon points="${p.x},${p.y + 20} ${p.x - 21},${p.y - 15} ${p.x + 21},${p.y - 15}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${dash}/>`;
+    let label = '';
+    if (leaf) label = mm.leaves[i - first]; else if (mv.value[i] !== undefined && Number.isFinite(mv.value[i])) label = mv.value[i];
+    const ty = leaf ? p.y + 5 : (d % 2 === 0 ? p.y + 9 : p.y - 2);
+    s += `<text x="${p.x}" y="${ty}" fill="${st === 'pruned' ? '#94a3b8' : '#fff'}" font-size="14" font-weight="700" text-anchor="middle">${label}</text>`;
+    if (!leaf && showAB && mv.alpha[i] !== undefined && st !== 'pruned') {
+      const a = mv.alpha[i] === null ? '-∞' : mv.alpha[i], be = mv.beta[i] === null ? '+∞' : mv.beta[i];
+      s += `<text x="${p.x}" y="${p.y - 26}" fill="#cbd5e1" font-size="10.5" text-anchor="middle">α=${a} β=${be}</text>`;
+    }
+  }
+  $('mmTree').innerHTML = s + '</svg>';
+  $('mmEval').textContent = mv.evalLeaves; $('mmVisited').textContent = mv.visited; $('mmPruned').textContent = mv.prunedLeaves;
+  if (mv.done && mm.run) $('mmValue').textContent = mm.run.value;
+}
+
+function mmReset() {
+  const err = mmReadInputs();                  // picks up edited depth / branches / leaf values
+  mmPlayer.reset(); mmInfo();
+  if (err) $('mmResult').innerHTML = `<span class="bad">${esc(err)}</span>`;
+}
+$('mmPreset').addEventListener('change', () => {
+  const p = MM_PRESETS[$('mmPreset').value];
+  if (p) { mm.depth = p.depth; mm.b = p.b; mm.leaves = p.leaves.slice(); mmSetInputs(); }
+  mmReset();
+});
+['mmDepth', 'mmBranch'].forEach(id => $(id).addEventListener('change', () => {
+  const d = parseInt($('mmDepth').value, 10), b = parseInt($('mmBranch').value, 10);
+  if (d >= 1 && d <= 5 && b >= 2 && b <= 3 && Math.pow(b, d) <= 32) { mm.depth = d; mm.b = b; mmRandomLeaves(); }
+  $('mmPreset').value = 'custom'; mmReset();
+}));
+$('mmLeaves').addEventListener('change', () => { $('mmPreset').value = 'custom'; mmReset(); });
+$('mmRandom').addEventListener('click', () => { const e = mmReadInputs(); if (!e) { mmRandomLeaves(); } $('mmPreset').value = 'custom'; mmReset(); });
+$('mmAB').addEventListener('change', mmReset);
+
+// =====================================================================
+//  WUMPUS WORLD
+// =====================================================================
+const AIMA_WORLD = { pits: [[3, 1], [3, 3], [4, 4]], wumpus: [1, 3], gold: [2, 3] };
+let world = JSON.parse(JSON.stringify(AIMA_WORLD));
+let wv = newWV();
+function newWV() { return { step: null, kb: [], cellPercepts: {}, n: 0 }; }
+const wvCv = $('wvCanvas'), wctx = wvCv.getContext('2d');
+const WC = 110, WM = 10;
+const same = (a, b) => !!a && !!b && a[0] === b[0] && a[1] === b[1];
+const inList = (list, c) => (list || []).some(x => same(x, c));
+const cellKey = c => c[0] + ',' + c[1];
+
+function randomWorld() {
+  const cells = []; for (let y = 1; y <= 4; y++) for (let x = 1; x <= 4; x++) if (!(x === 1 && y === 1)) cells.push([x, y]);
+  const pits = cells.filter(() => Math.random() < 0.2);
+  const free = cells.filter(c => !inList(pits, c));
+  const wumpus = free[Math.floor(Math.random() * free.length)];
+  const rest = free.filter(c => !same(c, wumpus));
+  const gold = rest[Math.floor(Math.random() * rest.length)];
+  return { pits, wumpus, gold };
+}
+
+const wvPlayer = createPlayer({
+  play: $('wvPlay'), step: $('wvStep'), fin: $('wvFinish'), rst: $('wvReset'), speed: $('wvSpeed'),
+  fetchRun: () => computeSteps('wumpus', { world }),
+  onRun: () => {},
+  onError: e => { $('wvResult').innerHTML = `<span class="bad">${esc(e.message)}</span>`; },
+  onReset: () => {
+    wv = newWV();
+    ['wvLog', 'wvKB'].forEach(id => { $(id).innerHTML = ''; });
+    $('wvAsk').innerHTML = '<span class="hint">Press Step to start.</span>';
+    $('wvPercepts').textContent = ''; $('wvResult').textContent = '';
+    $('wvStatus').textContent = 'ready'; $('wvScore').textContent = '0'; $('wvSteps').textContent = '0'; $('wvInv').textContent = '-';
+  },
+  apply: (s, i) => {
+    wv.step = s; wv.n = i + 1;
+    const key = cellKey(s.agent);
+    if (s.status !== 'dead' && !wv.cellPercepts[key]) wv.cellPercepts[key] = { b: s.percepts.breeze, s: s.percepts.stench };
+    s.tell.forEach(t => addLog($('wvKB'), `<span class="n">${i}</span>${esc(t)}`));
+    addLog($('wvLog'), `<span class="n">${i}</span><b>${esc(s.action)}</b> - ${esc(s.msg)}`);
+    wvPanels(s);
+  },
+  onEnd: r => {
+    const good = r.status === 'won';
+    $('wvResult').innerHTML = good ? `<span class="ok"><b>Success!</b> The agent grabbed the gold and climbed out. Final score ${r.score}.</span>`
+      : r.status === 'dead' ? `<span class="bad"><b>The agent died.</b> Final score ${r.score}. (It had to take a risk because nothing was provably safe.)</span>`
+      : `<span class="warn"><b>The agent gave up</b> without the gold (it was not reachable safely). Final score ${r.score}.</span>`;
+    addLog($('wvLog'), `<span class="n">*</span>Finished: ${r.status}, score ${r.score}.`, 'end');
+  },
+  redraw: () => wvDraw(),
+});
+
+function wvPanels(s) {
+  $('wvStatus').textContent = s.status === 'running' ? 'exploring' : s.status;
+  $('wvScore').textContent = s.score; $('wvSteps').textContent = Math.max(0, wv.n - 1);
+  $('wvInv').textContent = (s.hasGold ? 'gold' : 'no gold') + ' / ' + (s.arrow ? 'arrow' : 'no arrow');
+  const p = s.percepts, items = [];
+  if (p.breeze) items.push('Breeze'); if (p.stench) items.push('Stench'); if (p.glitter) items.push('Glitter'); if (p.scream) items.push('Scream');
+  $('wvPercepts').innerHTML = `<b>Percepts in (${s.agent[0]},${s.agent[1]}):</b> ` + (items.length ? items.join(', ') : 'none');
+  const asks = s.asks;
+  $('wvAsk').innerHTML = asks.length ? asks.map(a => {
+    const c = `(${a.cell[0]},${a.cell[1]})`;
+    const st = x => x === 'yes' ? '<span class="ok">YES</span>' : x === 'no' ? '<span class="bad">NO (proven)</span>' : '<span class="warn">unknown</span>';
+    return `${c} &nbsp;KB &#8872; &not;Pit: ${st(a.noPit)} <span class="hint">(${a.pitModels}/${a.models} models have a pit)</span> &nbsp;&not;Wumpus: ${st(a.noWumpus)}`;
+  }).join('<br>') : '<span class="hint">No unexplored neighbours.</span>';
+}
+
+function wvDraw() {
+  const s = wv.step, c = wctx;
+  c.clearRect(0, 0, wvCv.width, wvCv.height);
+  const reveal = $('wvReveal').checked;
+  for (let y = 4; y >= 1; y--) for (let x = 1; x <= 4; x++) {
+    const cell = [x, y], px = WM + (x - 1) * WC, py = WM + (4 - y) * WC;
+    let fill = '#0f172a', label = '';
+    if (s && inList(s.visited, cell)) fill = '#1e3a5f';
+    else if (s && inList(s.pits, cell)) { fill = '#7f1d1d'; label = 'PIT'; }
+    else if (s && inList(s.wumpus, cell)) { fill = '#7f1d1d'; label = 'WUMPUS'; }
+    else if (s && inList(s.safe, cell)) { fill = '#14532d'; label = 'safe'; }
+    else if (s && inList(s.maybe, cell)) { fill = '#78350f'; label = '?'; }
+    c.fillStyle = fill; c.fillRect(px + 2, py + 2, WC - 4, WC - 4);
+    c.strokeStyle = '#334155'; c.lineWidth = 1; c.strokeRect(px + 2.5, py + 2.5, WC - 5, WC - 5);
+    c.fillStyle = '#64748b'; c.font = '11px system-ui'; c.textAlign = 'left'; c.textBaseline = 'top'; c.fillText(`(${x},${y})`, px + 8, py + 8);
+    if (label) { c.fillStyle = '#fecaca'; c.font = 'bold 16px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(label, px + WC / 2, py + WC / 2 + 22); }
+    const cp = wv.cellPercepts[cellKey(cell)];
+    if (cp) {
+      let bx = px + 8; c.font = 'bold 13px system-ui'; c.textBaseline = 'middle';
+      [[cp.b, 'B', '#38bdf8'], [cp.s, 'S', '#a3e635']].forEach(([on, ch, col]) => { if (on) { c.fillStyle = col; c.fillRect(bx, py + WC - 28, 20, 20); c.fillStyle = '#04121f'; c.textAlign = 'center'; c.fillText(ch, bx + 10, py + WC - 17); bx += 24; } });
+    }
+    if (s && same(s.agent, cell) && s.percepts.glitter) { c.fillStyle = '#facc15'; c.fillRect(px + WC - 28, py + WC - 28, 20, 20); c.fillStyle = '#04121f'; c.font = 'bold 13px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('G', px + WC - 18, py + WC - 17); }
+    if (reveal) {                                   // the hidden world
+      const cx = px + WC - 22, cy = py + 24;
+      if (inList(world.pits, cell)) { c.beginPath(); c.arc(cx, cy, 13, 0, 7); c.fillStyle = '#000'; c.fill(); c.strokeStyle = '#ef4444'; c.lineWidth = 2; c.stroke(); }
+      if (same(world.wumpus, cell)) { c.fillStyle = '#dc2626'; c.fillRect(cx - 13, cy - 13, 26, 26); c.fillStyle = '#fff'; c.font = 'bold 15px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(s && s.wumpusDead ? 'x' : 'W', cx, cy + 1); }
+      if (same(world.gold, cell) && !(s && s.hasGold)) { c.beginPath(); c.moveTo(cx, cy - 14); c.lineTo(cx + 14, cy); c.lineTo(cx, cy + 14); c.lineTo(cx - 14, cy); c.closePath(); c.fillStyle = '#facc15'; c.fill(); }
+    }
+  }
+  const a = s ? s.agent : [1, 1], ax = WM + (a[0] - 1) * WC + WC / 2, ay = WM + (4 - a[1]) * WC + WC / 2 - 6, dead = s && s.status === 'dead';
+  c.beginPath(); c.arc(ax, ay, 22, 0, 7); c.fillStyle = dead ? '#ef4444' : '#22c55e'; c.fill(); c.lineWidth = 3; c.strokeStyle = '#fff'; c.stroke();
+  c.fillStyle = '#fff'; c.font = 'bold 20px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(dead ? 'X' : 'A', ax, ay + 1);
+}
+
+wvCv.addEventListener('click', e => {
+  const r = wvCv.getBoundingClientRect();
+  const px = (e.clientX - r.left) * wvCv.width / r.width - WM, py = (e.clientY - r.top) * wvCv.height / r.height - WM;
+  const x = Math.floor(px / WC) + 1, y = 4 - Math.floor(py / WC);
+  if (x < 1 || x > 4 || y < 1 || y > 4 || (x === 1 && y === 1)) return;
+  const cell = [x, y], brush = $('wvBrush').value;
+  world.pits = world.pits.filter(p => !same(p, cell));
+  if (same(world.wumpus, cell)) world.wumpus = null;
+  if (same(world.gold, cell)) world.gold = null;
+  if (brush === 'pit') world.pits.push(cell);
+  else if (brush === 'wumpus') world.wumpus = cell;
+  else if (brush === 'gold') world.gold = cell;
+  wvPlayer.reset();
+});
+$('wvAima').addEventListener('click', () => { world = JSON.parse(JSON.stringify(AIMA_WORLD)); wvPlayer.reset(); });
+$('wvRandom').addEventListener('click', () => { world = randomWorld(); $('wvReveal').checked = false; wvPlayer.reset(); });
+$('wvReveal').addEventListener('change', wvDraw);
+
+// ---------- start ----------
+mmSetInputs(); mmInfo(); mmDraw(); wvDraw();
+
+</script>
+</body>
+</html>

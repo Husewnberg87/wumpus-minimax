@@ -1,0 +1,152 @@
+<header>
+  <h1>AI Games Visualizer</h1>
+  <nav>
+    <button class="tab active" data-tab="minimax">Minimax + Alpha-Beta</button>
+    <button class="tab" data-tab="wumpus">Wumpus World (FOL)</button>
+  </nav>
+</header>
+
+<!-- ============================ MINIMAX ============================ -->
+<section id="tab-minimax">
+  <div class="toolbar">
+    <label>Example
+      <select id="mmPreset">
+        <option value="aima">AIMA tree (depth 2, 3 branches)</option>
+        <option value="bin3">Binary tree, depth 3</option>
+        <option value="bin4">Binary tree, depth 4</option>
+        <option value="custom">Custom / random</option>
+      </select>
+    </label>
+    <label>Depth <input id="mmDepth" type="number" min="1" max="5" value="2"></label>
+    <label>Branches <input id="mmBranch" type="number" min="2" max="3" value="3"></label>
+    <label>Leaf values <input id="mmLeaves" type="text" size="34" value="3, 12, 8, 2, 4, 6, 14, 5, 2"></label>
+    <button id="mmRandom">Randomize leaves</button>
+    <label><input type="checkbox" id="mmAB" checked> Alpha-beta pruning</label>
+    <button id="mmPlay" class="primary">&#9654; Play</button>
+    <button id="mmStep">Step</button>
+    <button id="mmFinish">&#9197; Finish</button>
+    <button id="mmReset">Reset</button>
+    <label>Speed <input id="mmSpeed" type="range" min="1" max="10" value="5"></label>
+  </div>
+  <main>
+    <section>
+      <div class="card">
+        <div id="mmTree" class="treebox"></div>
+        <div class="legend">
+          <span><i class="sw" style="background:#1a2740"></i>not visited yet</span>
+          <span><i class="sw" style="background:#f97316"></i>being evaluated</span>
+          <span><i class="sw" style="background:#0ea5e9"></i>finished</span>
+          <span><i class="sw" style="background:#334155"></i>pruned (never looked at)</span>
+          <span><i class="ln" style="border-color:#facc15;border-top-style:solid"></i>best line of play</span>
+          <span>&#9650; = MAX node &nbsp; &#9660; = MIN node &nbsp; &#9632; = leaf</span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Step-by-step log</h2>
+        <div id="mmLog" class="log"></div>
+      </div>
+    </section>
+    <aside>
+      <div class="card" id="mmInfo"></div>
+      <div class="card">
+        <h2>Live statistics</h2>
+        <div class="stats">
+          <div class="stat"><b id="mmValue">-</b><small>Value of the root</small></div>
+          <div class="stat"><b id="mmEval">0</b><small>Leaves evaluated</small></div>
+          <div class="stat"><b id="mmVisited">0</b><small>Nodes visited</small></div>
+          <div class="stat"><b id="mmPruned">0</b><small>Leaves pruned</small></div>
+        </div>
+        <div id="mmResult" class="result"></div>
+      </div>
+      <div class="card">
+        <h2>Minimax vs alpha-beta on this tree</h2>
+        <table>
+          <thead><tr><th>Method</th><th>Leaves evaluated</th><th>Nodes visited</th></tr></thead>
+          <tbody id="mmCompare"><tr><td colspan="3" class="hint">Run the search to compare.</td></tr></tbody>
+        </table>
+      </div>
+    </aside>
+  </main>
+</section>
+
+<!-- ============================ WUMPUS ============================ -->
+<section id="tab-wumpus" hidden>
+  <div class="toolbar">
+    <label>Edit world: place
+      <select id="wvBrush">
+        <option value="pit">Pit</option>
+        <option value="wumpus">Wumpus</option>
+        <option value="gold">Gold</option>
+        <option value="clear">Clear cell</option>
+      </select>
+    </label>
+    <button id="wvAima">AIMA example world</button>
+    <button id="wvRandom">Random world</button>
+    <label><input type="checkbox" id="wvReveal"> Reveal the hidden world</label>
+    <button id="wvPlay" class="primary">&#9654; Play</button>
+    <button id="wvStep">Step</button>
+    <button id="wvFinish">&#9197; Finish</button>
+    <button id="wvReset">Reset</button>
+    <label>Speed <input id="wvSpeed" type="range" min="1" max="10" value="4"></label>
+  </div>
+  <main>
+    <section>
+      <div class="card">
+        <canvas id="wvCanvas" width="460" height="460"></canvas>
+        <div class="legend">
+          <span><i class="sw" style="background:#1e3a5f"></i>visited</span>
+          <span><i class="sw" style="background:#14532d"></i>proven safe</span>
+          <span><i class="sw" style="background:#78350f"></i>possible danger</span>
+          <span><i class="sw" style="background:#7f1d1d"></i>proven pit / Wumpus</span>
+          <span><i class="sw" style="background:#0f172a"></i>unknown</span>
+          <span><b>B</b> breeze &nbsp; <b>S</b> stench &nbsp; <b>G</b> glitter</span>
+        </div>
+        <div class="hint" style="margin-top:8px">Click a cell to place the item chosen in &ldquo;Edit world&rdquo; (the start cell (1,1) always stays free).
+          Coordinates are (x, y) with (1,1) at the bottom-left.</div>
+      </div>
+      <div class="card">
+        <h2>Step-by-step log</h2>
+        <div id="wvLog" class="log"></div>
+      </div>
+    </section>
+    <aside>
+      <div class="card">
+        <h2>Agent</h2>
+        <div class="stats">
+          <div class="stat"><b id="wvStatus">ready</b><small>Status</small></div>
+          <div class="stat"><b id="wvScore">0</b><small>Score</small></div>
+          <div class="stat"><b id="wvSteps">0</b><small>Steps taken</small></div>
+          <div class="stat"><b id="wvInv">-</b><small>Gold / arrow</small></div>
+        </div>
+        <div id="wvPercepts" class="result"></div>
+        <div id="wvResult" class="result"></div>
+      </div>
+      <div class="card">
+        <h2>ASK: what does the KB entail?</h2>
+        <div id="wvAsk" class="mono small"><span class="hint">Press Step to start.</span></div>
+        <div class="hint" style="margin-top:6px">Answered by model checking (TT-ENTAILS): KB &#8872; &alpha; iff &alpha; holds in every model of the KB.
+          Time O(2<sup>f</sup>) for f frontier cells.</div>
+      </div>
+      <div class="card">
+        <h2>Knowledge base (TELL)</h2>
+        <div id="wvKB" class="log mono small" style="height:170px"></div>
+      </div>
+      <div class="card">
+        <h2>FOL axioms (background knowledge)</h2>
+        <div class="mono small axioms">
+          &forall;x,y &nbsp;Breeze(x,y) &hArr; &exist;x&prime;,y&prime; [Adjacent((x,y),(x&prime;,y&prime;)) &and; Pit(x&prime;,y&prime;)]<br>
+          &forall;x,y &nbsp;Stench(x,y) &hArr; &exist;x&prime;,y&prime; [Adjacent((x,y),(x&prime;,y&prime;)) &and; Wumpus(x&prime;,y&prime;)]<br>
+          &exist;!x,y &nbsp;Wumpus(x,y)<br>
+          &forall;x,y &nbsp;Safe(x,y) &hArr; &not;Pit(x,y) &and; &not;Wumpus(x,y)<br>
+          &forall;x,y &nbsp;Glitter(x,y) &rArr; Gold(x,y)
+        </div>
+        <div class="hint" style="margin-top:6px">For each visited cell the axioms are instantiated (universal instantiation) and added to the KB, as shown above.</div>
+      </div>
+    </aside>
+  </main>
+</section>
+
+<footer>
+  Minimax: time O(b<sup>m</sup>), space O(b&middot;m). Alpha-beta: same result, best case O(b<sup>m/2</sup>) with perfect move ordering.
+  Wumpus World: sound and complete inference by model checking over the frontier cells.
+</footer>
